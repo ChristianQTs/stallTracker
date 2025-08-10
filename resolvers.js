@@ -1,4 +1,12 @@
-const {stalls, Stall} =  require('./stallClass.js')
+const { GraphQLError } = require('./node_modules/graphql/index.js')
+const { stalls, Stall } = require('./stallClass.js')
+class customError extends GraphQLError {
+    constructor(message, code, status = 400) {
+        super(message, {
+            extensions: { code, http: {status}}
+        })
+    }
+}
 
 //convert seconds to Minute and Second Format:
 
@@ -23,10 +31,13 @@ const resolvers = {
     availableStalls: () => stalls.filter(s => s.isOccupied === false),
     stall: ({ id }) => {
         const stall = stalls.find(s => s.id === id)
-        if (!stall) return null
+        if (!stall) {
+            throw new customError('Stall not found', 'STALL_NOT_FOUND', 404)
+        }
         return stall
     },
     stallsByHighestOccupancyTime: () => {
+        if (!stalls) throw new customError('No stalls found', 'NO_STALLS_FOUND', 404)
         const sortedStalls = [...stalls].sort(function (a, b) { return b.longestVisit - a.longestVisit })
         return sortedStalls
     },
@@ -39,9 +50,9 @@ const resolvers = {
                 stalls[stallIndex].lastOccupiedAtMS = Date.now()
                 return stalls[stallIndex]
             }
-            else return null
-        } else return null
-
+            else throw new customError('Stall is already occupied', 'STALL_OCCUPIED', 400)
+        } else throw new customError('Stall not found', 'STALL_NOT_FOUND', 404)
+        
     },
     exitStall: ({ id }) => {
         const stallIndex = stalls.findIndex(s => s.id === id)
@@ -60,22 +71,23 @@ const resolvers = {
                 }
                 return stalls[stallIndex]
             }
-            else return null
+            else throw new customError('Stall not occupied', 'STALL_NOT_OCCUPIED', 400)
 
-        } else return null
+        } else throw new customError('Stall not found', 'STALL_NOT_FOUND', 404)
     },
     reportCleanliness: ({ id, rating }) => {
         const stallIndex = stalls.findIndex(s => s.id === id)
         if (stallIndex !== -1) {
-            if (rating < 0 || rating > 5) return null
-            if (!stalls[stallIndex].lastOccupiedAt) return null
+            if (rating < 1 || rating > 5) throw new customError('Invalid rating', 'INVALID_RATING', 400)
+            if (!stalls[stallIndex].lastOccupiedAt) throw new customError('Stall was never used', 'STALL_NOT_USED', 400)
             stalls[stallIndex].aggregateRating += rating
             stalls[stallIndex].ratingCount ++
             stalls[stallIndex].cleanlinessRating = Number((stalls[stallIndex].aggregateRating / stalls[stallIndex].ratingCount).toFixed(2))
             return stalls[stallIndex]
-        } return null
+        } else throw new customError('Stall not found', 'STALL_NOT_FOUND', 404)
     },
     addStall: ({ genderNeutral, floor }) => {
+        if (genderNeutral == null || floor == null) throw new customError('Provide all fields', 'INCOMPLETE_FIELDS', 400)
         const latestID = stalls.length != 0 ? stalls.at(-1).id : 0
         const newStall = new Stall(latestID + 1, genderNeutral, floor, false, null, null, null, 0, 0, 0, 0, null, null, null)
         stalls.push(newStall)
@@ -84,7 +96,7 @@ const resolvers = {
     deleteStall: ({ id }) => {
         const stallIndex = stalls.findIndex(s => s.id === id)
 
-        if (stallIndex === -1) return null
+        if (stallIndex === -1) throw new customError('Stall not found', 'STALL_NOT_FOUND', 404)
 
         const [deletedStall] = stalls.splice(stallIndex, 1)
         return deletedStall
