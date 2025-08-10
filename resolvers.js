@@ -68,8 +68,10 @@ const resolvers = {
         const stallIndex = stalls.findIndex(s => s.id === id)
         if (stallIndex !== -1) {
             if (rating < 0 || rating > 5) return null
-            if (!stalls[stallIndex].lastOccupiedAt) return null //users cannot rate a stall if it was never used
-            stalls[stallIndex].cleanlinessRating = rating
+            if (!stalls[stallIndex].lastOccupiedAt) return null
+            stalls[stallIndex].aggregateRating += rating
+            stalls[stallIndex].ratingCount ++
+            stalls[stallIndex].cleanlinessRating = Number((stalls[stallIndex].aggregateRating / stalls[stallIndex].ratingCount).toFixed(2))
             return stalls[stallIndex]
         } return null
     },
