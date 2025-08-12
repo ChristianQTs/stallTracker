@@ -1,4 +1,6 @@
 // JavaScript source code
+const { env } = require('node:process')
+require('dotenv').config({path:'./secret.env'})
 const express = require('express')
 const  {graphqlHTTP} = require('express-graphql')
 const { schema } = require('./schema.js')
@@ -23,5 +25,4 @@ app.use('/graphql', graphqlHTTP({
     }
 
 }))
-
-app.listen(6969, () => console.log('Stalls on the line'))
+app.listen(process.env.PORT || 6969, () => console.log('Stalls on the line'))
